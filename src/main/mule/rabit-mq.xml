@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:amqp="http://www.mulesoft.org/schema/mule/amqp"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amqp/current/mule-amqp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="f9a2bbf0-97b0-41fa-9f3e-b4e50e82a7d6" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<amqp:config name="AMQP_Config" doc:name="AMQP Config" doc:id="fa3c82f7-5ae0-4117-8047-2b0628710acb" >
+		<amqp:connection host="puffin-01.rmq2.cloudamqp.com" port="5672" virtualHost="fwkfpzhj" username="fwkfpzhj" password="password" />
+	</amqp:config>
+	<flow name="rabit-mq-publish-main-flow" doc:id="2a70861a-1b99-4e9a-9aad-d33a64566604" >
+		<http:listener doc:name="Listener" doc:id="82965167-0b95-4843-9298-d03ecd7c13f8" config-ref="HTTP_Listener_config" path="/rabit-mq/publish"/>
+		<ee:transform doc:name="Prepare Message" doc:id="d7c81b72-6f54-492b-ae0f-60bc9307b845" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Test Message",
+	"timestamp": now()
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<amqp:publish doc:name="Publish" doc:id="f917a7de-6f8d-45e8-8eca-59beb376cb1a" config-ref="AMQP_Config" exchangeName="MULESOFT"/>
+		<logger level="INFO" doc:name="Log Response" doc:id="13e314ef-f43d-4341-92d8-f471bf440f1e" message="Message Published to Rabit MQ Exchange"/>
+	</flow>
+	<flow name="rabit-mqFlow" doc:id="ff5d0fcf-d962-425a-b6a1-cf4967d5918a" >
+		<amqp:listener doc:name="Listener" doc:id="9cf72189-5d3a-4ea2-a916-6622555c942d" config-ref="AMQP_Config" queueName="MULESOFT-QUEUE"/>
+		<ee:transform doc:name="Parse Message" doc:id="168ed874-4ac1-4dd2-84ff-325c56eca64b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Log Message" doc:id="f628b6e0-423c-4135-8b55-9e65067a3f79" message="Message Received from Rabit MQ Exchange: #[payload]" />
+	</flow>
+</mule>
